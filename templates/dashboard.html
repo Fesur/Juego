@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Dashboard</h1>
+    <div id="correct_clicks_chart"></div>
+    <div id="incorrect_clicks_chart"></div>
+    <div id="lives_chart"></div>
+    <div id="color_hits_chart"></div>
+
+    <script>
+        var socket = io();
+
+        socket.on('update', function(data) {
+            updateCharts(data);
+        });
+
+        socket.on('reset', function() {
+            resetCharts();
+        });
+
+        function updateCharts(data) {
+            Plotly.react('correct_clicks_chart', [{
+                x: ['Correct Clicks'],
+                y: [data.correct_clicks],
+                type: 'bar'
+            }]);
+
+            Plotly.react('incorrect_clicks_chart', [{
+                x: ['Incorrect Clicks'],
+                y: [data.incorrect_clicks],
+                type: 'bar'
+            }]);
+
+            Plotly.react('lives_chart', [{
+                x: ['Lives'],
+                y: [data.lives],
+                type: 'bar'
+            }]);
+
+            var colors = Object.keys(data.color_hits);
+            var hits = Object.values(data.color_hits);
+
+            Plotly.react('color_hits_chart', [{
+                x: colors,
+                y: hits,
+                type: 'bar'
+            }]);
+        }
+
+        function resetCharts() {
+            updateCharts({
+                correct_clicks: 0,
+                incorrect_clicks: 0,
+                lives: 3,
+                color_hits: {
+                    red: 0,
+                    green: 0,
+                    blue: 0,
+                    yellow: 0,
+                    purple: 0,
+                    orange: 0
+                }
+            });
+        }
+
+        // Datos históricos pasados desde el backend
+        var gameHistory = {{ game_history|safe }};
+        var colorHitsHistory = {{ color_hits_history|safe }};
+
+        // Aquí puedes usar los datos históricos para crear gráficos acumulados
+        // Ejemplo:
+        var correctClicks = gameHistory.map(item => item.correct_clicks);
+        var incorrectClicks = gameHistory.map(item => item.incorrect_clicks);
+        var lives = gameHistory.map(item => item.lives);
+        var timestamps = gameHistory.map(item => item.timestamp);
+
+        Plotly.newPlot('correct_clicks_chart', [{
+            x: timestamps,
+            y: correctClicks,
+            type: 'scatter'
+        }]);
+
+        Plotly.newPlot('incorrect_clicks_chart', [{
+            x: timestamps,
+            y: incorrectClicks,
+            type: 'scatter'
+        }]);
+
+        Plotly.newPlot('lives_chart', [{
+            x: timestamps,
+            y: lives,
+            type: 'scatter'
+        }]);
+
+        // Para color_hits_history, puedes agrupar por color y mostrar los hits acumulados
+        var colorHitsData = {};
+        colorHitsHistory.forEach(item => {
+            if (!colorHitsData[item.color]) {
+                colorHitsData[item.color] = [];
+            }
+            colorHitsData[item.color].push(item.hits);
+        });
+
+        var colorHitsTraces = [];
+        for (var color in colorHitsData) {
+            colorHitsTraces.push({
+                x: timestamps,
+                y: colorHitsData[color],
+                type: 'scatter',
+                name: color
+            });
+        }
+
+        Plotly.newPlot('color_hits_chart', colorHitsTraces);
+    </script>
+</body>
+</html>
